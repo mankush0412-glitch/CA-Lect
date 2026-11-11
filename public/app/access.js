@@ -1,0 +1,65 @@
+/* Access tab: free-access window, ad servers, lecture-quota boosts, today's usage. */
+(function () {
+  'use strict';
+  const { ic, esc, pl } = U; let st = null, at = 0, timer = null, host = null, ps = null;
+  const SRV = { tv: ['#6f6df0', 'rgba(111,109,240,.16)'], target: ['#e09b2d', 'rgba(224,155,45,.16)'], book: ['#e09b2d', 'rgba(224,155,45,.16)'], rocket: ['#e09b2d', 'rgba(224,155,45,.16)'], download: ['#2fb67f', 'rgba(47,182,127,.16)'] };
+  const left = () => (st ? Math.max(0, st.remainingMs - (Date.now() - at)) : 0);
+  const p2 = (n) => String(n).padStart(2, '0');
+  function dots(s) { let h = ''; for (let i = 0; i < s.perDay; i++) h += `<i class="${i < s.used ? 'u' : ''}"></i>`; return `<div class="dots">${h}</div>`; }
+  function server(s, kind) { const lectures = kind === true || kind === 'lectures', dl = kind === 'dl'; const [c, bg] = SRV[s.icon] || SRV.tv; const limit = s.used >= s.perDay; const sub = dl ? `+${s.extraDownloads} downloads · ${s.used}/${s.perDay} used today` : lectures ? `+${s.extraLectures} lectures · ${s.used}/${s.perDay} used today` : `+${s.hours}h${(U.me.config || {}).proTipEnabled !== false ? ' / +' + Math.round(s.hours * 2.5) + 'h' : ''} · ${s.used}/${s.perDay} used today`; return `<div class="srv"><div class="ic" style="background:${bg};color:${c}">${ic(s.icon === 'target' ? 'target' : s.icon === 'book' ? 'book-2' : s.icon === 'rocket' ? 'rocket' : s.icon === 'download' ? 'download' : 'tv')}</div><div class="m"><b>${esc(s.name)}</b><div class="s">${sub}</div>${dots(s)}</div><button class="btn shine ${dl ? 'green' : 'amber'}" data-w="${esc(s.id)}" ${limit ? 'disabled' : ''}>${ic('player-play-filled')}${limit ? 'Done' : 'Watch'}</button></div>`; }
+  function html() {
+    const on = st.active; const u = st.usage;
+    const hero = on ? `<div class="ac-hero ac-on" style="color:var(--tx)"><span class="ac-pill"><i></i>Access active</span><div class="ac-t">${ic('hourglass')}TIME REMAINING</div><div class="ac-cd"><div><b id="cdH">00</b><span>HRS</span></div><div><b id="cdM">00</b><span>MIN</span></div><div><b id="cdS">00</b><span>SEC</span></div></div><div class="ac-bar"><i id="cdBar" style="width:${st.pct}%"></i></div><div class="ac-sub" id="cdPct">${st.pct}% of this access window left</div></div>`
+      : `<div class="ac-hero"><div class="ac-ring">${ic('lock')}</div><h2>No Active Access</h2><p>Watch an ad below to unlock ${st.servers[0] ? st.servers[0].hours : 24} hours of access</p><div class="dn">${ic('arrow-down')}</div></div>`;
+    const servers = st.servers.length ? st.servers.map((s) => server(s, false)).join('') : U.empty('tv', 'No ad servers are set up yet.<br>Ask the admin to add one.');
+    const boost = st.lectureServers.length ? `<div class="ac-sec"><div class="ac-sh"><div class="ic" style="background:rgba(224,155,45,.16);color:#e09b2d">${ic('rocket')}</div><div><b>Increase today's lecture limit</b><span>Need more lectures today? Boost your quota</span></div></div>${st.lectureServers.map((s) => server(s, true)).join('')}</div>` : '';
+    const dlSec = (st.downloadServers || []).length ? `<div class="ac-sec"><div class="ac-sh"><div class="ic" style="background:rgba(47,182,127,.16);color:#2fb67f">${ic('download')}</div><div><b>Download lectures</b><span>Save lectures to your phone · ${st.usage.downloadsLeft || 0} downloads left today</span></div></div>${st.downloadServers.map((s) => server(s, 'dl')).join('')}</div>` : '';
+    const pctL = u.lecturesLimit ? Math.round(u.lecturesLeft / u.lecturesLimit * 100) : 0; const pctA = u.adsLimit ? Math.round(u.adsWatched / u.adsLimit * 100) : 0;
+    return `<div class="fade">${hero}<div class="ac-sec"><div class="ac-sh"><div class="ic" style="background:var(--pSoft);color:var(--p)">${ic(on ? 'bolt' : 'lock-open')}</div><div><b>${on ? 'Extend access' : 'Get access'}</b><span>Each server below adds extra hours</span></div></div>${servers}</div>${boost}${dlSec}
+      <div class="ac-sec"><div class="ac-sh"><div class="ic" style="background:var(--pSoft);color:var(--p)">${ic('chart-bar')}</div><div><b>Today's usage</b></div></div><div class="use"><div><div class="top"><span class="n">${u.lecturesLeft}<small>/${u.lecturesLimit}</small></span>${ic('video')}</div><div class="l">Lectures left</div><div class="prog"><i style="width:${pctL}%"></i></div></div><div><div class="top"><span class="n">${u.adsWatched}<small>/${u.adsLimit}</small></span><span style="color:var(--g)">${ic('tv')}</span></div><div class="l">Ads watched today</div><div class="prog"><i style="width:${pctA}%;background:var(--gradG)"></i></div></div></div></div>
+      ${extras()}
+      ${st.staff ? `<div class="chip p" style="margin:0 auto;display:flex;width:max-content">${ic('shield-check')}Staff account · unlimited access</div>` : ''}</div>`;
+  }
+  /** Delivery-bot reminder + optional paid "save pass" (forward / save lectures). */
+  function extras() {
+    const d = (U.me && U.me.delivery) || {}; let h = '';
+    if (d.separate && d.username && !d.started) h += `<div class="ac-sec"><div class="ac-sh"><div class="ic" style="background:var(--pSoft);color:var(--p)">${ic('send')}</div><div><b>Activate lecture delivery</b></div></div><p style="color:var(--mu);margin:0 0 9px;font-size:12.5px">Lectures aur notes <b>@${esc(d.username)}</b> bot me aayenge. Ek baar us bot ko Start karo.</p><button class="btn p" data-a="dlv" style="width:100%">Open @${esc(d.username)}</button></div>`;
+    if (ps && ps.enabled) h += `<div class="ac-sec"><div class="ac-sh"><div class="ic" style="background:rgba(224,155,45,.16);color:#e09b2d">${ic('download')}</div><div><b>Save pass</b></div></div>${ps.active ? `<p style="margin:0;font-size:13px">✅ Active till ${new Date(ps.until).toLocaleString()}<br><span style="color:var(--mu)">Today: ${ps.left} of ${ps.dailyLimit} saves left</span></p>` : `<p style="color:var(--mu);margin:0 0 9px;font-size:12.5px">Lectures forward ya gallery me save karne ke liye pass lo (max ${ps.dailyLimit}/day).</p>`}<div style="display:flex;gap:8px;margin-top:9px"><button class="btn p" data-pp="day" style="flex:1">${esc(ps.day.label)} · ₹${ps.day.price}</button><button class="btn" data-pp="week" style="flex:1">${esc(ps.week.label)} · ₹${ps.week.price}</button></div></div>`;
+    return h;
+  }
+  function loadRzp() { return new Promise((res, rej) => { if (window.Razorpay) return res(); const sc = document.createElement('script'); sc.src = 'https://checkout.razorpay.com/v1/checkout.js'; sc.onload = res; sc.onerror = () => rej(new Error('Payment window could not load')); document.head.appendChild(sc); }); }
+  async function buy(plan) {
+    try { const o = await U.A('POST', '/pay/order', { plan }); await loadRzp();
+      new window.Razorpay({ key: o.keyId, amount: o.amount, currency: o.currency, order_id: o.orderId, name: (U.me && U.me.brand) || 'Save pass', description: 'Save pass · ' + o.label, theme: { color: '#4f8ef7' },
+        handler: async (r) => { try { ps = await U.A('POST', '/pay/verify', { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature }); if (host) host.innerHTML = html(); U.toast && U.toast('Save pass active ✅'); } catch (e) { U.fail(e); } } }).open();
+    } catch (e) { U.fail(e); }
+  }
+  function tick() { if (!host || !host.isConnected || !st) return; const l = left(); if (st.active) { const s = Math.floor(l / 1000); const h = $id('cdH'); if (h) { h.textContent = p2(Math.floor(s / 3600)); $id('cdM').textContent = p2(Math.floor(s % 3600 / 60)); $id('cdS').textContent = p2(s % 60); const pct = st.windowMs ? Math.min(100, Math.round(l / st.windowMs * 100)) : 0; $id('cdBar').style.width = pct + '%'; $id('cdPct').textContent = pct + '% of this access window left'; } if (l <= 0) refresh(); } }
+  const $id = (i) => document.getElementById(i);
+  async function refresh(silent) { try { st = await U.A('GET', '/access'); at = Date.now(); Access.state = st; if (window.Main) Main.setAccessDot(st.active || st.staff); if (host && host.isConnected) { host.innerHTML = html(); tick(); } } catch (e) { if (!silent && host) host.innerHTML = U.empty('wifi-off', esc(e.message), '<br><br><button class="btn" id="acRetry">Retry</button>'); } }
+  function waitSheet(info, server) {
+    let sec = info.minSeconds; const R = 54, C = 2 * Math.PI * R;
+    const ov = U.sheet(`<div class="ad-w"><h3>${esc(server.name)}</h3><div class="sub2">Keep the ad open until the timer ends, then come back and tap Claim.</div><div class="rg"><svg viewBox="0 0 130 130"><circle cx="65" cy="65" r="${R}" fill="none" stroke="var(--line)" stroke-width="10"/><circle id="adArc" cx="65" cy="65" r="${R}" fill="none" stroke="url(#adg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="0"/><defs><linearGradient id="adg"><stop offset="0" stop-color="#9b8ff0"/><stop offset="1" stop-color="var(--p2)"/></linearGradient></defs></svg><b id="adT">${sec}</b></div><div class="foot"><button class="btn ghost" data-a="reopen">${ic('external')}Open ad again</button><button class="btn green" id="adClaim" disabled>${ic('check')}Claim</button></div></div>`);
+    const t = setInterval(() => { sec = Math.max(0, sec - 1); const el = ov.querySelector('#adT'); if (!el) return clearInterval(t); el.textContent = sec; ov.querySelector('#adArc').setAttribute('stroke-dashoffset', C * (1 - sec / info.minSeconds)); if (!sec) { ov.querySelector('#adClaim').disabled = false; ov.querySelector('#adT').innerHTML = ic('check'); clearInterval(t); } }, 1000);
+    const oc = ov.close; ov.close = () => { clearInterval(t); oc(); };
+    ov.addEventListener('click', async (e) => { if (e.target.closest('[data-a=reopen]')) return U.openLink(info.url); const b = e.target.closest('#adClaim'); if (!b) return; b.disabled = true; try { const before = st; st = await U.A('POST', '/ad/claim', { token: info.token }); at = Date.now(); const gained = server.hours ? `+${server.hours}h access` : server.extraDownloads && st.downloadServers && st.downloadServers.some((x) => x.id === server.id) ? `+${server.extraDownloads} downloads` : `+${server.extraLectures} lectures`; ov.close(); U.toast(`${gained} added 🎉`, 'ok'); host.innerHTML = html(); tick(); if (window.Main) Main.setAccessDot(true); } catch (err) { U.fail(err); b.disabled = err.status !== 425 ? true : false; } });
+  }
+  /* PRO TIP sheet (shown once a day before an access ad): clicking inside the ad earns the bigger reward. */
+  function proTip() {
+    let last = ''; try { last = localStorage.getItem('sm_tip') || ''; } catch (e) {} const today = new Date().toISOString().slice(0, 10); if (last === today) return Promise.resolve(false);
+    return new Promise((res) => { const big = Math.round((st.servers[0] ? st.servers[0].hours : 12) * 2.5);
+      const ov = U.sheet(`<div class="ptip"><span class="tipb">${ic('bulb')}PRO TIP</span><h3>2.5× zyada access mil sakta hai!</h3><p>Ads ke andar kisi bhi ek button pe click karo — sponsor ki site visit karo — aur ${st.servers[0] ? st.servers[0].hours : 12}h ki jagah poore <b>${big} ghante</b> milenge.</p><div class="tr"><div><span>Sirf ad dekha</span><b>Kuch click nahi kiya</b></div><em>${st.servers[0] ? st.servers[0].hours : 12}h</em></div><div class="tr hi"><div><span>Ad dekha + button click kiya</span><b>Sponsor site visit ki ${ic('bolt')}</b></div><em>${big}h</em></div><button class="btn block" data-t="ok">Okay, got it!</button></div>`);
+      const oc = ov.close; let done = false; const fin = (v) => { if (done) return; done = true; res(v); }; ov.close = () => { oc(); fin(false); };
+      ov.addEventListener('click', (e) => { if (e.target.closest('[data-t=ok]')) { try { localStorage.setItem('sm_tip', today); } catch (x) {} ov.close(); } }); });
+  }
+  async function watch(id) {
+    const all = st.servers.concat(st.lectureServers, st.downloadServers || []); const s = all.find((x) => x.id === id); if (!s) return;
+    if (st.proTip && st.servers.includes(s) && await proTip()) return;
+    try { const info = await U.A('POST', '/ad/start', { serverId: id }); U.openLink(info.url); waitSheet(info, st.lectureServers.includes(s) || (st.downloadServers || []).includes(s) ? { ...s, hours: 0 } : s); } catch (e) { U.fail(e); }
+  }
+  const Access = window.Access = {
+    state: null,
+    async render(el) { host = el; el.innerHTML = '<div class="wrap">' + U.sk + '</div>'; const w = document.createElement('div'); w.className = 'wrap'; el.innerHTML = ''; el.appendChild(w); host = w; w.innerHTML = U.sk; w.addEventListener('click', (e) => { const b = e.target.closest('[data-w]'); if (b && !b.disabled) watch(b.dataset.w); if (e.target.closest('#acRetry')) refresh(); const pp = e.target.closest('[data-pp]'); if (pp) buy(pp.dataset.pp); if (e.target.closest('[data-a=dlv]')) U.openLink('https://t.me/' + U.me.delivery.username); }); if (U.me && U.me.config && U.me.config.savePass) { try { ps = await U.A('GET', '/pay'); } catch (e) { ps = null; } } await refresh(); clearInterval(timer); timer = setInterval(tick, 1000); },
+    refresh, stop() { clearInterval(timer); },
+  };
+})();
