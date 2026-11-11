@@ -1,0 +1,13 @@
+{
+  "name": "studymate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram study bot + Mini App: lectures, access, study tracker, planner, admin panel. Zero npm dependencies.",
+  "main": "server.js",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "build:assets": "python3 tools/build-assets.py",
+    "test": "node --no-warnings --test --test-timeout=240000 test/*.test.js"
+  }
+}
