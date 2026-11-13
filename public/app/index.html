@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-skin="blue">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="robots" content="noindex">
+<title>StudyMate</title>
+<link rel="stylesheet" href="../shared/fonts.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="screens.css">
+<script data-cfasync="false">
+/* Safety net: if the app never draws (blocked script, proxy/CDN rewriting, bad cache) show why instead of a blank screen. */
+(function () { var errs = []; function add(m) { if (errs.length < 4) errs.push(String(m).slice(0, 140)); }
+  window.addEventListener('error', function (e) { add((e.message || 'error') + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : '')); }, true);
+  window.addEventListener('unhandledrejection', function (e) { add('promise: ' + ((e.reason && e.reason.message) || e.reason)); });
+  setTimeout(function () { var a = document.getElementById('app'), m = document.getElementById('main'), b = document.getElementById('boot'); if (!a) return; var gate = a.querySelector('.gate, .jg'); if (gate) return;
+    if (!b && m && (m.textContent || '').trim()) return; if (!b && !m) return;
+    var d = document.createElement('div'); d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:84px;z-index:99;background:#1a2235;color:#e8eaf6;border:1px solid #2b3f61;border-radius:14px;padding:14px;font:13px/1.4 system-ui,sans-serif';
+    d.innerHTML = '<b>Still loading…</b><div style="opacity:.75;margin:4px 0 10px">If this stays blank, tap Reload. Admin: check Cloudflare (turn off Rocket Loader / Auto Minify, bypass cache for /api).' + (errs.length ? '<br><br><code style="font-size:11px;word-break:break-all">' + errs.join('<br>').replace(/</g, '&lt;') + '</code>' : '') + '</div><button style="background:#3b7be8;color:#fff;border:0;border-radius:10px;padding:9px 16px;font-weight:600" onclick="location.reload()">Reload</button>'; a.appendChild(d); }, 9000); })();
+</script>
+<script data-cfasync="false" src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<div id="app">
+  <div id="boot"><div class="boot-logo"><span></span></div><div class="boot-t">Loading…</div></div>
+</div>
+<script data-cfasync="false" src="../shared/icons.js"></script>
+<script data-cfasync="false" src="core.js"></script>
+<script data-cfasync="false" src="ads.js"></script>
+<script data-cfasync="false" src="access.js"></script>
+<script data-cfasync="false" src="lectures.js"></script>
+<script data-cfasync="false" src="study.js"></script>
+<script data-cfasync="false" src="planner.js"></script>
+<script data-cfasync="false" src="rewards.js"></script>
+<script data-cfasync="false" src="main.js"></script>
+</body>
+</html>
