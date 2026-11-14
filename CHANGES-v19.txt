@@ -1,0 +1,6 @@
+v19 + v19b (merged) - replace these files (same paths) in your repo, then redeploy. No new env needed.
+Admin panel -> Bot settings: UI size now 100 (re-save if you had 88), suspension days, nightly backup (off), redeem options, referral bonus.
+Admin panel -> More -> Suspended students.
+Bot: /suspended, /unsuspend <userId>.
+Force-join suspension needs the bot to be ADMIN in the force-join channels (so Telegram sends leave events); without it the 10-minute re-check still catches leavers.
+v19b: delivered lectures auto-delete after 8h default (set 8 in Bot settings if you saved 24), toast 'See bot' + lecture bot opens automatically.
