@@ -1,0 +1,12 @@
+v20 - delivery bot: first-tap auto delivery (replace these files at the same paths, redeploy; no new env needed)
+
+Files: server.js, src/access.js, src/bot.js, public/app/lectures.js, test/round6.test.js
+
+What changed
+1) First time (student never pressed Start in the delivery bot): tapping any lecture/note now
+   - queues that lecture on the server,
+   - opens the delivery bot directly with a deep link (?start=dl),
+   - when the student presses START the lecture is sent AUTOMATICALLY (no second tap).
+2) After that, tapping a lecture opens the delivery bot directly with a plain link (no /start, no "Delivery bot is ready" card again).
+3) Already-started students are detected from a successful send as well, so they are never asked to Start again.
+4) Daily-plan reminder buttons in the main bot use the same queue + "Open delivery bot & Start" button.
