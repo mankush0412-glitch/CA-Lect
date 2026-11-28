@@ -1,0 +1,97 @@
+/* App shell: header, bottom navigation, theme, onboarding, popups. */
+(function () {
+  'use strict';
+  const { ic, esc, TG } = U; const $app = document.getElementById('app');
+  const NAV = [['access', 'Access', 'shield-check'], ['lectures', 'Lectures', 'play-circle'], ['study', 'Study', 'stopwatch'], ['referral', 'Referral', 'link'], ['points', 'Points', 'diamond']];
+  let tab = '', autoTab = false, accessOn = false, unread = 0, studyLive = false, mainEl = null;
+  function gate(icon, t, msg) { $app.innerHTML = `<div style="margin:auto;text-align:center;padding:24.5px;max-width:313px">${ic(icon).replace('class="i ', 'style="font-size:45.5px;color:var(--p)" class="i ')}<h2 style="margin:11.5px 0 6.5px">${esc(t)}</h2><p style="color:var(--mu)">${esc(msg)}</p></div>`; }
+  /** Small pill by the level name: "Remove Ads" (plan on sale) or "Premium" (member). Tapping opens the plans / the Access tab. */
+  function afPill() { const act = !!(U.me.adFree && U.me.adFree.active); if (!act && !(U.me.config.adFree && (U.me.config.adFreePlans || []).length)) return ''; return `<button class="afp ${act ? 'on' : ''}" data-m="adfree" id="afp" aria-label="${act ? 'Premium' : 'Remove ads'}">${act ? ic('crown') + 'Premium' : ic('sparkles') + 'Remove Ads'}</button>`; }
+  function header() { const u = (U.me && U.me.name) || 'Student'; const lv = U.me.level; return `<header class="hdr"><div class="av">${esc(Array.from(u)[0] || 'S')}</div><div class="who"><b>${esc(u)}</b><span id="hl" class="${lv === 'intermediate' ? 'ig' : ''}">${lv === 'foundation' ? 'CA Foundation' : lv === 'intermediate' ? 'CA Intermediate' : lv === 'final' ? 'CA Final' : 'CA Student'}</span>${afPill()}</div>${U.me.staff ? `<button class="hb" data-m="panel" aria-label="Admin panel"><span class="b" style="background:var(--p2);box-shadow:0 4px 13px rgba(var(--pr),.35)">${ic('settings')}</span>Panel</button>` : ''}<button class="hb" data-m="reload" aria-label="Reload" style="min-width:0"><span class="b" style="background:var(--p2);box-shadow:0 4px 13px rgba(var(--pr),.35)">${ic('refresh')}</span></button><button class="hb" data-m="theme" aria-label="Toggle theme"><span class="tgl"></span>Theme</button>${U.me.config.supportLink ? `<button class="hb" data-m="support" aria-label="Support"><span class="b">${ic('headset')}</span>Support</button>` : ''}</header>`; }
+  function nav() { return `<nav class="nav" aria-label="Main">${NAV.map(([id, l, i]) => `<button data-m="tab" data-v="${id}" class="${tab === id || (id === 'lectures' && tab === 'planner') ? 'on' : ''}" aria-label="${l}">${ic(i)}${l}${id === 'access' ? `<span class="nb" id="nbA" style="${accessOn ? 'display:none' : ''};min-width:8.5px;height:8.5px;padding:0;left:calc(50% + 9px);top:4px"></span>` : ''}${id === 'study' ? `<span class="nb" id="nbS" style="${unread ? '' : 'display:none'}">${unread > 9 ? '10+' : unread}</span>` : ''}</button>`).join('')}</nav>`; }
+  /** Theme: 'level' = Foundation blue / Intermediate green (default), or always blue / always green (Admin → Bot configuration). */
+  function applyTheme() { const c = (U.me && U.me.config) || {}; const pick = c.themeSkin === 'green' ? 'green' : c.themeSkin === 'indigo' ? 'indigo' : c.themeSkin === 'orange' ? 'orange' : 'blue'; /* blue everywhere; green only marks Intermediate (level switch, label) */ document.documentElement.dataset.skin = pick; try { U.theme.set(U.theme.get()); } catch (e) {} }
+  function applyScale() { const s = Number((U.me && U.me.config && U.me.config.uiScale) || 100); document.documentElement.style.setProperty('--zm', String(Math.min(1.1, Math.max(0.6, s / 100)))); }
+  function shell() { applyTheme(); $app.innerHTML = header() + (U.guest ? `<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 14px;background:var(--card2);border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--mu)">Preview mode — to get lectures, open the bot in Telegram.</span>${U.me.bot ? `<a href="https://t.me/${esc(U.me.bot)}" style="color:var(--p);font-weight:700;text-decoration:none;white-space:nowrap">Open Telegram</a>` : ''}</div>` : '') + '<main id="main"></main>' + nav(); mainEl = document.getElementById('main'); $app.addEventListener('click', onClick); }
+  function guestCard(t) { const bot = (U.me && U.me.bot) || ''; const T = { access: ['shield-check', 'Get free access in Telegram', 'Unlock lectures by watching a short sponsored ad. This needs your Telegram account.'], study: ['stopwatch', 'Study timer & streaks', 'Track your study time in Telegram.'], referral: ['link', 'Refer friends', 'Invite friends and earn rewards in Telegram.'], points: ['diamond', 'Points', 'Collect and redeem points in Telegram.'] }[t] || ['send', 'Open in Telegram', '']; return `<div class="wrap"><div style="text-align:center;padding:28px 8px">${ic(T[0]).replace('class="i ', 'style="font-size:42px;color:var(--p)" class="i ')}<h2 style="margin:12px 0 6px">${esc(T[1])}</h2><p style="color:var(--mu);margin:0 0 16px">${esc(T[2])}</p>${bot ? `<a href="https://t.me/${esc(bot)}" style="display:inline-block;padding:13px 24px;border-radius:14px;background:var(--grad);color:#fff;font-weight:700;text-decoration:none">Open @${esc(bot)} in Telegram</a>` : ''}</div></div>`; }
+  function go(t) {
+    if (tab === t && t !== 'lectures') return; try { if (tab === 'study' && window.Study) Study.leave(); if (window.Access && tab === 'access') Access.stop(); if (window.Planner && tab === 'planner') Planner.close(); Back.reset(); Back.setBase(t === 'access' ? null : () => go('access')); } catch (e) { /* never leave the screen blank because of a back-button hiccup */ }
+    tab = t; document.querySelectorAll('.nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === t || (b.dataset.v === 'lectures' && t === 'planner'))); mainEl.innerHTML = ''; mainEl.scrollTop = 0;
+    const el = document.createElement('div'); mainEl.appendChild(el);
+    try {
+      if (U.guest && t !== 'lectures' && t !== 'planner') el.innerHTML = guestCard(t); else
+      if (t === 'access') Access.render(el); else if (t === 'lectures') Lectures.render(el); else if (t === 'study') Study.render(el); else if (t === 'referral') Rewards.referral(el); else if (t === 'points') Rewards.points(el);
+      else if (t === 'planner') Planner.open(el, () => go('lectures'));
+    } catch (err) { el.innerHTML = `<div class="wrap">${U.empty('wifi-off', 'This screen could not load — ' + esc(String(err && err.message || err).slice(0, 120)))}<button class="btn block" data-m="reload" style="margin-top:12px">Reload</button></div>`; }
+    try { sessionStorage.setItem('sm_tab', t === 'planner' ? 'lectures' : t); } catch (e) {}
+  }
+  function onClick(e) { const b = e.target.closest('[data-m]'); if (!b) return; const k = b.dataset.m; U.tap(); if (k === 'tab') { autoTab = false; go(b.dataset.v); } else if (k === 'adfree') { if (window.Access) Access.promo(go); } else if (k === 'theme') U.theme.toggle(); else if (k === 'support') U.openLink(U.me.config.supportLink); else if (k === 'panel') { const d = U.initData(); try { sessionStorage.setItem('sm_init', d); sessionStorage.setItem('sm_from_app', '1'); } catch (x) { /* ignore */ } location.href = '../admin/' + (location.hash || (d ? '#tgWebAppData=' + encodeURIComponent(d) : '')); } else if (k === 'reload') location.reload(); }
+  function whatsapp() { const link = U.me.config.whatsappLink; if (!link || !/^https:\/\//.test(link)) return; let last = 0; try { last = +localStorage.getItem('sm_wa') || 0; } catch (e) {} if (Date.now() - last < 3 * 864e5) return; try { localStorage.setItem('sm_wa', Date.now()); } catch (e) {}
+    const ov = U.modal(`<div class="em">🚨</div><h3>Join Our WhatsApp Channel Urgently</h3><p>Agar kal ko humara telegram channels bhi ban kar diya to kya karoge?\n\nDon't worry.\n\nIsliye join our WhatsApp channel too.</p><button class="btn block" data-w="go" style="padding:14.5px;font-size:14px">Click Here To Join</button><button class="btn ghost block" data-w="x" style="margin-top:8.5px;border:0;background:none;color:var(--mu)">Maybe later</button>`); ov.addEventListener('click', (e) => { const b = e.target.closest('[data-w]'); if (b) { if (b.dataset.w === 'go') U.openLink(link); ov.close(); } }); }
+  window.Main = {
+    go, afterDraw() {}, setPremium(on) { if (U.me) U.me.adFree = on ? { active: true } : null; if (on && window.Ads && Ads.unblock) Ads.unblock(); const d = document.getElementById('afp'); if (d) { d.className = 'afp ' + (on ? 'on' : ''); d.innerHTML = (on ? ic('crown') + 'Premium' : ic('sparkles') + 'Remove Ads'); } }, setAccessDot(on) { accessOn = !!on; const d = document.getElementById('nbA'); if (d) d.style.display = on ? 'none' : ''; },
+    setUnread(n) { unread = n || 0; const d = document.getElementById('nbS'); if (d) { d.style.display = unread ? '' : 'none'; d.textContent = unread > 9 ? '10+' : unread; } const g = document.querySelector('.stabs [data-v=groups]'); },
+    setStudyLive(on) { studyLive = on; }, setLevel(l) { U.me.level = l; applyTheme(); const h = document.getElementById('hl'); if (h) { h.textContent = l === 'foundation' ? 'CA Foundation' : l === 'final' ? 'CA Final' : 'CA Intermediate'; h.className = l === 'intermediate' ? 'ig' : ''; } }, tab: () => tab,
+  };
+  /** Full-screen "join to unlock" gate (same layout as the other bot's Mini App): level channels with photo, a Join button on each card, then Verify + status line under it. */
+  function joinGate(j) {
+    return new Promise((done) => {
+      const BTN = `${ic('check')} I've Joined — Verify`;
+      const draw = (j, msg) => {
+        const ini = (t) => esc((t || '?').trim().charAt(0).toUpperCase());
+        const act = (c, i) => c.joined ? `<span class="jg-j done">${ic('check')} Joined</span>` : c.url ? `<button class="jg-j" data-i="${i}">${ic('brand-telegram')} Join</button>` : '<span class="jg-nl">No<br>link set</span>';
+        $app.innerHTML = `<div class="jg-o"><div class="jg fade"><div class="jg-logo">${ic('shield-check')}</div><h2>Join to Continue</h2><p class="jg-s">Please join our official channel(s) to access the app. It's free and keeps you updated!</p>
+          <div class="jg-l">${j.channels.map((c, i) => `<div class="jg-c ${c.joined ? 'ok' : ''}"><div class="jg-a">${c.photo ? `<img src="${esc(c.photo)}" alt="">` : ini(c.title)}</div><div class="jg-t"><b>${esc(c.title || 'Channel')}</b><span>${c.joined ? '✅ Joined' : '⏳ Not joined yet'}</span></div>${act(c, i)}</div>`).join('')}</div>
+          <button class="jg-v" id="jgv">${BTN}</button><div class="jg-m" id="jgm">${esc(msg || '')}</div></div></div>`;
+        $app.querySelectorAll('button.jg-j').forEach((b) => b.addEventListener('click', () => U.openLink(j.channels[+b.dataset.i].url)));
+        document.getElementById('jgv').addEventListener('click', async (e) => { const v = e.currentTarget; v.disabled = true; v.textContent = 'Checking...'; try { const r = await U.A('POST', '/join/verify', {}); if (r.allJoined) { if (window.Ads) await Ads.show(); return done(); } const left = r.channels.filter((c) => !c.joined).length; draw(r, `Please join ${left} more channel(s) above, then verify again.`); } catch (x) { draw(j, 'Verification failed. Please try again.'); } });
+      };
+      draw(j, '');
+    });
+  }
+  /** Reports a browser fingerprint once per session so the owner is told when one device runs several accounts. */
+  function fp() {
+    const n = navigator, s = screen; let cv = ''; try { const c = document.createElement('canvas'); c.width = 200; c.height = 30; const x = c.getContext('2d'); x.textBaseline = 'top'; x.font = '14px Arial'; x.fillStyle = '#f60'; x.fillRect(5, 2, 80, 20); x.fillStyle = '#069'; x.fillText('StuBot 🎓 fp', 4, 4); cv = c.toDataURL().slice(-120); } catch (e) {}
+    const raw = [n.userAgent, n.language, n.hardwareConcurrency, n.deviceMemory, s.width, s.height, s.colorDepth, window.devicePixelRatio, new Date().getTimezoneOffset(), n.platform, cv].join('|'); let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < raw.length; i++) { const ch = raw.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+  }
+  function deviceCheck() { try { if (sessionStorage.getItem('sm_dc')) return; sessionStorage.setItem('sm_dc', '1'); } catch (e) {} U.A('POST', '/device-check', { fingerprint: fp(), did: U.did() }).catch(() => {}); }
+  async function boot() {
+    let th = null; try { th = localStorage.getItem('sm_theme'); } catch (e) {} U.theme.set(th || (TG && TG.colorScheme === 'light' ? 'light' : 'dark'));
+    if (TG) { try { TG.ready(); TG.expand(); if (TG.disableVerticalSwipes) TG.disableVerticalSwipes(); let fsOff = false; try { fsOff = localStorage.getItem('sm_fs') === '0'; } catch (e) {} if (!fsOff && TG.requestFullscreen && /android|ios/i.test(TG.platform || '') && !TG.isFullscreen) TG.requestFullscreen(); } catch (e) {} } /* floating close / menu pills like the reference bot; the saved choice avoids a jump on the next open */
+    if (!U.initData()) { /* opened in a normal browser: read-only preview of the real app (Admin → Bot configuration can switch it off) */
+      try { const g = await U.A('GET', '/me'); if (g && g.guest) U.guest = true; } catch (e) { /* preview off or offline → landing page below */ }
+    }
+    if (!U.initData() && !U.guest) {
+      let bot = ''; try { const r = await fetch('/api/app/hello', { cache: 'no-store' }).then((x) => x.json()); bot = (r && r.data && r.data.bot) || ''; } catch (e) { /* offline */ }
+      const li = (i, t, d) => `<div style="display:flex;gap:12px;text-align:left;padding:12px 14px;border:1px solid var(--line);background:var(--card);border-radius:14px">${ic(i).replace('class="i ', 'style="font-size:22px;color:var(--p);flex:none" class="i ')}<div><b>${t}</b><div style="color:var(--mu);font-size:13px;margin-top:2px">${d}</div></div></div>`;
+      $app.innerHTML = `<div style="margin:auto;text-align:center;padding:24px;max-width:420px;width:100%"><div style="font-size:30px;font-weight:800;letter-spacing:.3px;color:var(--p)">StuBot</div><h1 style="font-size:20px;margin:8px 0 6px">Study lectures &amp; notes, right inside Telegram</h1><p style="color:var(--mu);margin:0 0 16px">StuBot is a Telegram Mini App for students: browse subject-wise video lectures and PDF notes, request the lecture you need and track your progress.</p><div style="display:grid;gap:10px;margin-bottom:18px">${li('book', 'Lectures', 'Subject, chapter and unit wise video lectures.')}${li('file', 'Notes', 'Download chapter notes as PDF.')}${li('sparkles', 'Free access', 'Watch a short sponsored ad to unlock lectures — no payment needed.')}</div>${bot ? `<a href="https://t.me/${esc(bot)}" style="display:inline-block;padding:13px 24px;border-radius:14px;background:var(--grad);color:#fff;font-weight:700;text-decoration:none">Open @${esc(bot)} in Telegram</a><p style="color:var(--mu);font-size:12px;margin-top:12px">This Mini App runs inside Telegram. Tap the button, press Start, then “Open”.</p>` : `<p style="color:var(--mu)">Open this bot in the Telegram app and tap “Open”.</p>`}</div>`;
+      return; }
+    const pJoin = U.pre('/join'); U.pre('/access'); const pMe = U.A('GET', '/me'); pMe.then((m) => { if (m && m.level) { U.pre('/tree?level=' + m.level); U.pre('/announcements'); } }).catch(() => {}); /* all of these travel together instead of one after another */
+    /* Fast re-open: a student who was already let in last time sees the app at once from the saved copy; the fresh data is checked in the background. */
+    let uidNow = ''; try { uidNow = String(JSON.parse(new URLSearchParams(U.initData()).get('user') || '{}').id || ''); } catch (e) { /* ignore */ }
+    let cached = null; try { const c = JSON.parse(localStorage.getItem('sm_me') || 'null'); if (c && c.me && uidNow && String(c.me.id) === uidNow && Date.now() - c.at < 3 * 864e5) cached = c.me; } catch (e) { /* ignore */ }
+    const save = () => { try { localStorage.setItem('sm_me', JSON.stringify({ at: Date.now(), me: U.me })); } catch (e) { /* ignore */ } };
+    if (cached) {
+      U.me = cached;
+      pMe.then((m) => { if (!m) return; const was = JSON.stringify([U.me.level, !!U.me.adFree, U.me.config && U.me.config.finalEnabled, (U.me.config && U.me.config.adFreePlans || []).length, U.me.name]); U.me = m; save(); applyScale(); const now = JSON.stringify([m.level, !!m.adFree, m.config && m.config.finalEnabled, (m.config && m.config.adFreePlans || []).length, m.name]); if (was !== now && $app.querySelector('.nav')) { const t0 = tab; shell(); tab = ''; go(t0 || 'lectures'); } }).catch((e) => { if (e && (e.banned || e.status === 403)) { try { localStorage.removeItem('sm_me'); } catch (x) { /* ignore */ } location.reload(); } });
+      pJoin.then(async (j) => { if (j.required && !j.allJoined) { await joinGate(j); location.reload(); } }).catch((e) => { if (e && (e.joinRequired || e.status === 403)) { try { localStorage.removeItem('sm_me'); } catch (x) { /* ignore */ } location.reload(); } });
+    } else {
+      try { U.me = await pMe; } catch (e) { if (e.banned) return gate('lock', 'Account Banned', e.reason ? 'Reason: ' + e.reason + ' — contact support if you think this is a mistake.' : 'Your account has been banned. Contact support if you think this is a mistake.'); return gate(e.status === 403 ? 'lock' : 'wifi-off', e.status === 403 ? (/^Suspended/.test(e.message) ? 'Account suspended' : 'Account blocked') : 'Could not load', e.message); }
+    }
+    document.title = U.me.brand; applyScale(); if (!U.guest) deviceCheck();
+    if (TG) { const want = U.me.config.fullscreen !== false; try { localStorage.setItem('sm_fs', want ? '1' : '0'); } catch (e) {} try { if (want && TG.requestFullscreen && /android|ios/i.test(TG.platform || '') && !TG.isFullscreen) TG.requestFullscreen(); else if (!want && TG.isFullscreen && TG.exitFullscreen) TG.exitFullscreen(); } catch (e) {} }
+    if (window.Ads && !U.me.adFree) Ads.init(U.me.config);
+    if (!cached) try { const j = await pJoin; if (j.required && !j.allJoined) await joinGate(j); else if (!U.guest) save(); } catch (e) { if (e.joinRequired || e.status === 403) return gate('lock', 'Join required', 'Please open the bot and join the required channels first.'); /* other errors: never block the app */ }
+    shell(); Study.boot();
+    /* if a student leaves a channel while the app is open, the next request shows the join screen once (no reload loop) */
+    U.onJoinRequired = () => { if (window.__jg) return; window.__jg = 1; U.A('GET', '/join').then(async (j) => { if (j.required && !j.allJoined) { await joinGate(j); location.reload(); } else window.__jg = 0; }).catch(() => { window.__jg = 0; }); };
+    const first = 'lectures'; autoTab = false; /* the app always opens on Lectures */
+    let accP = null;
+    go(first); setTimeout(() => { autoTab = false; }, 8000); const pst = (window.Access && Access.poster) ? Access.poster(go) : Promise.resolve(); pst.then(() => { if (!U.guest) setTimeout(whatsapp, 1200); });
+    (accP || U.A('GET', '/access')).then((a) => { if (window.Access && !Access.state) Access.state = a; Main.setAccessDot(a.active || a.staff); }).catch(() => {});
+  }
+  boot();
+})();
